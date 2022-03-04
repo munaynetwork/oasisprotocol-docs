@@ -24,28 +24,25 @@ For testing purposes, do not hesitate to ask us for TEST which you can then use 
 
 :::
 
-:::info
+## Set up local development environment
 
-Are Ethereum and Oasis wallets that different? I can use the same mnemonics with both, right?
+We strongly suggest that you set up a local Oasis network stack consisting of:
+- Oasis Node
+- Emerald ParaTime
+- Web3 gateway
 
-Yes, both Oasis and Ethereum wallets make use of the mnemonics as defined in [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) and they even use the same wordlist to derive the keypairs for your wallet. However, they use a different signature scheme and a derivation path, so the addresses and the private keys are incompatible.
+We offer precompiled Docker image which you can download and run locally:
 
-Here's a task for you:
+```sh
+docker run -it -p8545:8545 -p8546:8546 oasisprotocol/emerald-dev
+```
 
-1. Visit [https://iancoleman.io/bip39/](https://iancoleman.io/bip39/) to generate a BIP39 mnemonic.
-2. Select ETH token and copy the hex-encoded private key of the first derived account, for example `0xab2c4f3bc70d40f12f6030750fe452448b5464114cbfc46704edeef2cd06da74.`
-3. Import the Ethereum-compatible account with the private key obtained above to your Oasis Wallet Browser Extension.
-4. Notice the Ethereum address of the account, for example `0x58c72Eb040Dd0DF10882aA87a39851c21Ae5F331.`
-5. Now in the Account management screen, select this account and click on the "Export private key" button. Confirm the risk warning.
-6. You will notice the private key of the Ethereum-compatible account, the hex-encoded address and the very same address encoded in the Oasis bech32 format, in our case`oasis1qpaj6hznytpvyvalmsdg8vw5fzlpftpw7g7ku0h0.`
-7. Now let's use the private key from step 2 to import the Oasis wallet with. First, convert the hex-encoded key to base64 format, for example by using [this service](https://base64.guru/converter/encode/hex). In our example, that would be `qyxPO8cNQPEvYDB1D+RSRItUZBFMv8RnBO3u8s0G2nQ=.`
-8. Next, import this base64-encoded private key to the Oasis Wallet Browser Extension.
-9. You should see your newly imported account and the Oasis address. In our case `oasis1qzaf9zd8rlmchywmkkqmy00wrczstugfxu9q09ng.`
-10. Observe that this account address is different than the bech32-encoded version of the Ethereum-compatible address despite using the same private key to import the wallet with, because of a different _signature scheme_.
+This will spin up the stack described above and open the following web3 endpoints:
 
-As an additional exercise, you can also create an Oasis wallet using the BIP39 mnemonic from the step 1 above. You will notice that the imported account's base64-encoded private key in the account details screen is different from the one in step 7 above. That's because Oasis uses a different _path derivation_ than Ethereum.
-
-:::
+```
+http://localhost:8545
+ws://localhost:8546
+```
 
 ## Create dApp on Emerald with Hardhat
 
@@ -83,10 +80,15 @@ Changing greeting from 'Hello, world!' to 'Hola, mundo!'
 
 Hardhat already comes with a built-in EVM which is spun up from scratch each time we call `hardhat test` without parameters. It populates 20 accounts with ETH and registers them to the [ethers.js](https://docs.ethers.io/v5/) instance used by tests.
 
-Now, let's look at how to configure Hardhat for the Emerald Testnet and Mainnet networks. Open `hardhat.config.ts` and replace the `networks` field to match the ones from the [Network parameters](../../oasis-network/network-parameters) page:
+Now, let's look at how to configure Hardhat for the Emerald Local, Testnet and Mainnet networks. Open `hardhat.config.ts` and replace the `networks` field to match the ones from the [Network parameters](../../oasis-network/network-parameters) page:
 
 ```
 networks: {
+    emerald_local: {
+      url: "http://localhost:8545",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     emerald_testnet: {
       url: "https://testnet.emerald.oasis.dev",
       accounts:
@@ -217,9 +219,16 @@ Add this line at the beginning of your `truffle-config.js`:
 
 `const HDWalletProvider = require("@truffle/hdwallet-provider");`
 
-And finally configure the `emerald_testnet` and `emerald_mainnet` networks in`truffle-config.js` and use the private key stored in the environment variable:
+And finally configure the `emerald_localhost`, `emerald_testnet` and `emerald_mainnet` networks in`truffle-config.js` and use the private key stored in the environment variable:
 
 ```
+emerald_localhost: {
+  url: "http://localhost:8545",
+  provider: function() {
+    return new HDWalletProvider(process.env.PRIVATE_KEYS.split(","), "http://localhost:8545");
+  },
+  network_id: "*"
+},
 emerald_testnet: {
   url: "https://testnet.emerald.oasis.dev:8545",
   provider: function() {
@@ -272,6 +281,8 @@ account two: 0x33a8Ba274FEdFeed6A08d09eC524a1E1A6Da8262
 
   5 passing (2m)
 ```
+
+TODO: First describe testnet and then mainnet.
 
 Finally, we deploy the contract to Mainnet by running the `migrate` Truffle command and setting the network to `emerald_mainnet`. In a few rounds, depending on the network congestion, the contracts will be deployed:
 
