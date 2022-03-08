@@ -3,10 +3,10 @@ name: Sync external docs
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: "*/15 * * * *"
+#  pull_request: #debug
+#    branches: [main]
+#  schedule:
+#    - cron: "*/15 * * * *"
 
 jobs:
   sync-external-docs:
@@ -18,7 +18,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
-          ref: main
 
       - name: Update all submodules to latest versions
         run: |
@@ -26,12 +25,26 @@ jobs:
           git submodule update --remote -- "external"
           # Stop if there are no changes.
           git diff --quiet && exit 0
-          git config user.name "${COMMITTER_NAME}"
-          git config user.email "${COMMITTER_EMAIL}"
           git add "external"
-          git commit --message "${COMMIT_MESSAGE}"
-          git push
-        env:
-          COMMIT_MESSAGE: Sync external docs
-          COMMITTER_NAME: github-actions[bot]
-          COMMITTER_EMAIL: noreply@github.com
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v3
+        commit-message: Sync external docs
+        committer: github-actions[bot]
+        author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+        signoff: false
+        branch: depsbot/sync-external-docs
+        delete-branch: true
+        title: 'deps: Sync external docs'
+        body: |
+          Auto-generated PR to sync external git submodule(s).
+        labels: |
+          automated pr
+        draft: false
+
+      - name: Approve Pull Request
+        uses: hmarr/auto-approve-action@v2
+          with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
