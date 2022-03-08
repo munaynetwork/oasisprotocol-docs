@@ -1,6 +1,10 @@
 name: Sync external docs
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "*/15 * * * *"
 
@@ -14,6 +18,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          ref: main
 
       - name: Update all submodules to latest versions
         run: |
