@@ -1,0 +1,32 @@
+name: Sync external docs
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  sync-external-docs:
+    name: Sync external docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Update all submodules to latest versions
+        run: |
+          # Update submodules.
+          git submodule update --remote -- "external"
+          # Stop if there are no changes.
+          git diff --quiet && exit 0
+          git config user.name "${COMMITTER_NAME}"
+          git config user.email "${COMMITTER_EMAIL}"
+          git add "external"
+          git commit --message "${COMMIT_MESSAGE}"
+          git push
+        env:
+          COMMIT_MESSAGE: Sync external docs
+          COMMITTER_NAME: github-actions[bot]
+          COMMITTER_EMAIL: noreply@github.com
